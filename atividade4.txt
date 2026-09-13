@@ -1,0 +1,133 @@
+#include "raylib.h"
+#include <stdlib.h>
+
+#define TOTAL_INIMIGOS 5
+#define VIDA_INICIAL 60
+#define DANO_TIRO 10
+#define CURA 10
+
+typedef enum {
+    INIMIGO_VIVO,
+    INIMIGO_MORTO
+} EstadoInimigo;
+
+typedef struct {
+    Vector2 pos;
+    float raio;
+    int vida;
+    EstadoInimigo estado;
+} Inimigo;
+
+void inicializarInimigos(Inimigo *vetor, int n) {
+    for (int i = 0; i < n; i++) {
+        Inimigo *ini = vetor + i;
+
+        ini->pos.x = 150 + i * 130;
+        ini->pos.y = 250;
+        ini->raio = 30;
+        ini->vida = VIDA_INICIAL;
+        ini->estado = INIMIGO_VIVO;
+    }
+}
+
+void atingirInimigo(Inimigo *inimigo, int dano) {
+    if (inimigo == NULL || inimigo->estado == INIMIGO_MORTO)
+        return;
+
+    inimigo->vida -= dano;
+
+    if (inimigo->vida <= 0) {
+        inimigo->vida = 0;
+        inimigo->estado = INIMIGO_MORTO;
+    }
+}
+
+void curarTodos(Inimigo *vetor, int n, int cura) {
+    for (int i = 0; i < n; i++) {
+        Inimigo *ini = vetor + i;
+
+        if (ini->estado == INIMIGO_VIVO) {
+            ini->vida += cura;
+
+            if (ini->vida > VIDA_INICIAL)
+                ini->vida = VIDA_INICIAL;
+        }
+    }
+}
+
+Inimigo *encontrarInimigoMaisFraco(Inimigo *vetor, int n) {
+    Inimigo *maisFraco = NULL;
+
+    for (int i = 0; i < n; i++) {
+        Inimigo *ini = vetor + i;
+
+        if (ini->estado == INIMIGO_VIVO) {
+            if (maisFraco == NULL || ini->vida < maisFraco->vida)
+                maisFraco = ini;
+        }
+    }
+
+    return maisFraco;
+}
+
+int main() {
+
+    InitWindow(800, 600, "Atividade 4");
+    SetTargetFPS(60);
+
+    Inimigo *inimigos =
+        (Inimigo *) malloc(TOTAL_INIMIGOS * sizeof(Inimigo));
+
+    if (inimigos == NULL)
+        return 1;
+
+    inicializarInimigos(inimigos, TOTAL_INIMIGOS);
+
+    while (!WindowShouldClose()) {
+
+        if (IsKeyPressed(KEY_SPACE)) {
+            Inimigo *alvo =
+                encontrarInimigoMaisFraco(inimigos, TOTAL_INIMIGOS);
+
+            atingirInimigo(alvo, DANO_TIRO);
+        }
+
+        if (IsKeyPressed(KEY_C)) {
+            curarTodos(inimigos, TOTAL_INIMIGOS, CURA);
+        }
+
+        BeginDrawing();
+
+        ClearBackground(RAYWHITE);
+
+        DrawText("ESPACO = atacar", 20, 20, 20, BLACK);
+        DrawText("C = curar", 20, 50, 20, BLACK);
+
+        for (int i = 0; i < TOTAL_INIMIGOS; i++) {
+
+            Inimigo *ini = inimigos + i;
+
+            if (ini->estado == INIMIGO_VIVO) {
+                DrawCircleV(ini->pos, ini->raio, RED);
+
+                DrawText(
+                    TextFormat("%d", ini->vida),
+                    ini->pos.x - 10,
+                    ini->pos.y - 10,
+                    20,
+                    WHITE
+                );
+            }
+            else {
+                DrawCircleV(ini->pos, ini->raio, GRAY);
+            }
+        }
+
+        EndDrawing();
+    }
+
+    free(inimigos);
+    CloseWindow();
+
+    return 0;
+}
