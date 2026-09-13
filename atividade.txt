@@ -1,0 +1,262 @@
+#include "raylib.h"
+#include <stdlib.h>
+#include <math.h>
+
+#define LARGURA 800
+#define ALTURA 600
+#define MAX_ENTIDADES 20
+#define RAIO_JOGADOR 20.0f
+
+typedef enum {
+    ENTIDADE_JOGADOR,
+    ENTIDADE_INIMIGO,
+    ENTIDADE_ITEM
+} TipoEntidade;
+
+typedef union {
+    int dano;
+    int valor;
+} ExtraEntidade;
+
+typedef struct {
+    TipoEntidade tipo;
+    Vector2 pos;
+    float raio;
+    int vida;
+    Color cor;
+    ExtraEntidade extra;
+} Entidade;
+
+Entidade *vetorEntidades[MAX_ENTIDADES];
+int totalEntidades = 0;
+
+Entidade *criarEntidade(TipoEntidade tipo, Vector2 pos) {
+
+    Entidade *e = (Entidade *) malloc(sizeof(Entidade));
+
+    if (e == NULL)
+        return NULL;
+
+    e->tipo = tipo;
+    e->pos = pos;
+
+    e->raio = (tipo == ENTIDADE_JOGADOR)
+              ? RAIO_JOGADOR
+              : (tipo == ENTIDADE_INIMIGO)
+              ? 15.0f
+              : 8.0f;
+
+    switch (tipo) {
+
+        case ENTIDADE_JOGADOR:
+            e->vida = 100;
+            e->cor = BLUE;
+            break;
+
+        case ENTIDADE_INIMIGO:
+            e->vida = 40;
+            e->cor = MAROON;
+            e->extra.dano = GetRandomValue(5, 15);
+            break;
+
+        case ENTIDADE_ITEM:
+            e->vida = 1;
+            e->cor = GOLD;
+            e->extra.valor = GetRandomValue(5, 20);
+            break;
+    }
+
+    return e;
+}
+
+void adicionarEntidade(Entidade *e) {
+
+    if (e != NULL && totalEntidades < MAX_ENTIDADES) {
+        vetorEntidades[totalEntidades] = e;
+        totalEntidades++;
+    }
+}
+
+void removerEntidade(int indice) {
+
+    if (indice < 0 || indice >= totalEntidades)
+        return;
+
+    free(vetorEntidades[indice]);
+
+    vetorEntidades[indice] =
+        vetorEntidades[totalEntidades - 1];
+
+    totalEntidades--;
+}
+
+/* EXERCICIO 1 */
+void ordenarPorDistancia() {
+
+    Entidade *jogador = vetorEntidades[0];
+
+    for (int i = 1; i < totalEntidades - 1; i++) {
+
+        for (int j = i + 1; j < totalEntidades; j++) {
+
+            float dx1 =
+                vetorEntidades[i]->pos.x - jogador->pos.x;
+
+            float dy1 =
+                vetorEntidades[i]->pos.y - jogador->pos.y;
+
+            float distancia1 =
+                sqrtf(dx1 * dx1 + dy1 * dy1);
+
+            float dx2 =
+                vetorEntidades[j]->pos.x - jogador->pos.x;
+
+            float dy2 =
+                vetorEntidades[j]->pos.y - jogador->pos.y;
+
+            float distancia2 =
+                sqrtf(dx2 * dx2 + dy2 * dy2);
+
+            if (distancia2 < distancia1) {
+
+                Entidade *tmp = vetorEntidades[i];
+
+                vetorEntidades[i] = vetorEntidades[j];
+
+                vetorEntidades[j] = tmp;
+            }
+        }
+    }
+}
+
+int main() {
+
+    InitWindow(LARGURA, ALTURA, "Atividade 5");
+
+    SetTargetFPS(60);
+
+    adicionarEntidade(
+        criarEntidade(
+            ENTIDADE_JOGADOR,
+            (Vector2){400, 300}
+        )
+    );
+
+    adicionarEntidade(
+        criarEntidade(
+            ENTIDADE_INIMIGO,
+            (Vector2){150, 150}
+        )
+    );
+
+    adicionarEntidade(
+        criarEntidade(
+            ENTIDADE_INIMIGO,
+            (Vector2){650, 150}
+        )
+    );
+
+    adicionarEntidade(
+        criarEntidade(
+            ENTIDADE_ITEM,
+            (Vector2){250, 400}
+        )
+    );
+
+    while (!WindowShouldClose()) {
+        if (IsKeyPressed(KEY_N)) {
+
+            if (totalEntidades < MAX_ENTIDADES) {
+
+                Vector2 pos = {
+                    GetRandomValue(50, 750),
+                    GetRandomValue(80, 550)
+                };
+
+                Entidade *novo =
+                    criarEntidade(ENTIDADE_ITEM, pos);
+
+                adicionarEntidade(novo);
+            }
+        }
+
+        ordenarPorDistancia();
+
+        BeginDrawing();
+
+        ClearBackground(RAYWHITE);
+
+        DrawText(
+            "N = criar novo item",
+            20,
+            20,
+            20,
+            BLACK
+        );
+
+        DrawText(
+            TextFormat(
+                "Entidades: %d",
+                totalEntidades
+            ),
+            20,
+            50,
+            20,
+            BLACK
+        );
+
+        for (int i = 0; i < totalEntidades; i++) {
+
+            Entidade *e = vetorEntidades[i];
+
+            DrawCircleV(
+                e->pos,
+                e->raio,
+                e->cor
+            );
+
+            if (e->tipo == ENTIDADE_JOGADOR) {
+
+                DrawText(
+                    "Jogador",
+                    e->pos.x - 30,
+                    e->pos.y - 40,
+                    15,
+                    BLACK
+                );
+            }
+
+            if (e->tipo == ENTIDADE_INIMIGO) {
+
+                DrawText(
+                    TextFormat("Dano: %d", e->extra.dano),
+                    e->pos.x - 30,
+                    e->pos.y - 35,
+                    15,
+                    BLACK
+                );
+            }
+
+            if (e->tipo == ENTIDADE_ITEM) {
+
+                DrawText(
+                    TextFormat("Valor: %d", e->extra.valor),
+                    e->pos.x - 30,
+                    e->pos.y - 30,
+                    15,
+                    BLACK
+                );
+            }
+        }
+
+        EndDrawing();
+    }
+
+    for (int i = 0; i < totalEntidades; i++) {
+        free(vetorEntidades[i]);
+    }
+
+    CloseWindow();
+
+    return 0;
+}
